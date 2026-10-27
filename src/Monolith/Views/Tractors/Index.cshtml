@@ -1,0 +1,84 @@
+@model IEnumerable<AgriculturalWebsite.Models.Tractor>
+
+@{
+    ViewData["Title"] = "Трактори";
+}
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Каталог тракторів</h1>
+        @if (User.IsInRole("Admin") || User.IsInRole("Farmer"))
+        {
+            <a asp-action="Create" class="btn btn-success">Додати трактор</a>
+        }
+    </div>
+
+    <div class="row">
+        @if (Model.Any())
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        @if (!string.IsNullOrEmpty(item.ImageUrl))
+                        {
+                            <img src="@item.ImageUrl" class="card-img-top" alt="@item.Name" style="height: 200px; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <span class="text-white">Немає зображення</span>
+                            </div>
+                        }
+                        <div class="card-body">
+                            <h5 class="card-title">@item.Name</h5>
+                            <p class="card-text">
+                                <strong>Марка:</strong> @item.Brand<br />
+                                <strong>Модель:</strong> @item.Model<br />
+                                <strong>Потужність:</strong> @item.Power к.с.<br />
+                                <strong>Ціна:</strong> @item.Price.ToString("C")
+                            </p>
+                            <div class="d-flex justify-content-between">
+                                @if (User.Identity.IsAuthenticated)
+                                {
+                                    <button type="button" class="btn btn-outline-danger" onclick="toggleFav(@item.Id, 'Tractor')">
+                                        🤍
+                                    </button>
+                                }
+                                
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-primary">Детальніше</a>
+                                
+                                @if (User.IsInRole("Admin") || User.IsInRole("Farmer"))
+                                {
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-warning">Змінити</a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <p>У каталозі поки немає тракторів.</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleFav(id, type) {
+            $.post('/Home/ToggleFavorite', { itemId: id, itemType: type })
+                .done(function() {
+                    alert("Додано у вибране!");
+                })
+                .fail(function() {
+                    alert("Помилка при додаванні.");
+                });
+        }
+    </script>
+}

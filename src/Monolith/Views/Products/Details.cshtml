@@ -1,0 +1,210 @@
+@model AgriculturalWebsite.Models.Product
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<IdentityUser> UserManager
+
+@{
+    ViewData["Title"] = Model.Name;
+    string sellerId = Model.FarmerId; 
+    string productName = Model.Name;
+    var currentUserId = UserManager.GetUserId(User);
+}
+
+<div class="container mt-5">
+    <div class="row">
+        <!-- Фото продукту -->
+        <div class="col-md-6">
+            @if (!string.IsNullOrEmpty(Model.ImageUrl))
+            {
+                <img src="@Model.ImageUrl" class="img-fluid rounded shadow-sm" alt="@Model.Name" style="width: 100%; max-height: 400px; object-fit: cover;" />
+            }
+            else
+            {
+                <div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 300px;">
+                    <span>Немає фото продукту</span>
+                </div>
+            }
+        </div>
+
+        <!-- Інформація про товар -->
+        <div class="col-md-6">
+            <h1 class="display-5 font-weight-bold mb-3">@Model.Name</h1>
+            <h4 class="text-muted mb-3">Категорія: @Model.Category</h4>
+            
+            <div class="card p-3 my-3 bg-light border-0">
+                <h3 class="text-success mb-0">Ціна: @Model.Price.ToString("C") / @Model.Unit</h3>
+                <p class="mt-2 mb-0"><strong>Статус:</strong> @(Model.IsAvailable ? "В наявності" : "Немає в наявності")</p>
+                <p class="mb-0"><strong>Фермер:</strong> @Model.FarmerId</p>
+            </div>
+
+            <p class="lead mt-4">@Model.Description</p>
+
+            <!-- БЛОК КНОПОК -->
+            <div class="d-flex flex-wrap gap-2 mt-4 align-items-center">
+                @if (Model.IsAvailable)
+                {
+                    <a asp-action="AddToCart" asp-controller="Cart" asp-route-id="@Model.Id" class="btn btn-primary btn-lg shadow-sm px-4">
+                        <i class="bi bi-cart-plus-fill me-2"></i> Додати в кошик
+                    </a>
+                }
+
+                @if (User.Identity != null && User.Identity.IsAuthenticated)
+                {
+                    @if (User.Identity.Name != sellerId && currentUserId != sellerId)
+                    {
+                        <button id="startChatBtn" class="btn btn-warning btn-lg shadow-sm px-4">
+                            <i class="bi bi-chat-left-text-fill me-2"></i> Написати продавцю
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="text-muted ms-2"><i>(Це ваше власне оголошення)</i></span>
+                    }
+                }
+                else
+                {
+                    <a asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-outline-secondary btn-lg shadow-sm">
+                        <i class="bi bi-box-arrow-in-right me-2"></i> Увійдіть, щоб написати
+                    </a>
+                }
+            </div>
+
+            <div class="mt-3">
+                <a asp-action="Index" class="btn btn-link text-dark p-0">← Назад до каталогу продукції</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Віджет чату -->
+<div id="customChatWidget" class="card shadow-lg d-none" style="position: fixed; bottom: 20px; right: 20px; width: 360px; z-index: 1050; border-radius: 8px 8px 0 0; border: 1px solid #ced4da;">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0 text-truncate" style="max-width: 260px;">Повідомлення: @productName</h6>
+        <button type="button" class="btn-close btn-close-white" id="closeChatBtn" aria-label="Close"></button>
+    </div>
+    <div class="card-body p-2" id="chatMessagesBox" style="height: 300px; overflow-y: auto; background-color: #f8f9fa;">
+        <!-- Повідомлення -->
+    </div>
+    <div class="card-footer p-2 bg-white">
+        <form id="chatForm">
+            <input type="hidden" id="hiddenChatId" value="" />
+            @Html.AntiForgeryToken()
+            <div class="input-group">
+                <input type="text" id="chatMessageInput" class="form-control form-control-sm" placeholder="Введіть повідомлення..." autocomplete="off" required />
+                <button class="btn btn-warning btn-sm px-3" type="submit" id="sendMsgBtn">
+                    Надіслати
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let connection = null;
+        const startChatBtn = document.getElementById("startChatBtn");
+        const chatWidget = document.getElementById("customChatWidget");
+        const closeChatBtn = document.getElementById("closeChatBtn");
+        const messagesBox = document.getElementById("chatMessagesBox");
+        const msgInput = document.getElementById("chatMessageInput");
+        const chatForm = document.getElementById("chatForm");
+        const hiddenChatId = document.getElementById("hiddenChatId");
+
+        if (!startChatBtn) return;
+
+        startChatBtn.addEventListener("click", async function () {
+            chatWidget.classList.remove("d-none");
+            
+            if (!hiddenChatId.value) {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                
+                const response = await fetch('/Chat/CreateChat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `sellerId=${encodeURIComponent('@sellerId')}&productName=${encodeURIComponent('@productName')}&__RequestVerificationToken=${token}`
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    hiddenChatId.value = data.chatId;
+                    
+                    await loadHistory(data.chatId);
+                    initSignalR(data.chatId);
+                } else {
+                    messagesBox.innerHTML = `<div class="text-danger p-2">Не вдалося зв'язатися з продавцем.</div>`;
+                }
+            }
+        });
+
+        closeChatBtn.addEventListener("click", () => chatWidget.classList.add("d-none"));
+
+        async function loadHistory(chatId) {
+            messagesBox.innerHTML = '<div class="text-muted text-center p-2" style="font-size:0.9rem;">Завантаження...</div>';
+            const res = await fetch(`/api/chat/${chatId}/messages`);
+            if (res.ok) {
+                const messages = await res.json();
+                messagesBox.innerHTML = '';
+                messages.forEach(msg => {
+                    appendMessage(msg.userId === '@currentUserId' ? 'me' : 'other', msg.text, msg.sentAt);
+                });
+                scrollToBottom();
+            }
+        }
+
+        function initSignalR(chatId) {
+            if (connection) return;
+
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chathub")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("ReceiveMessage", function (data) {
+                if (data.chatId == chatId) {
+                    const type = data.userId === '@currentUserId' ? 'me' : 'other';
+                    appendMessage(type, data.text, data.sentAt);
+                    scrollToBottom();
+                }
+            });
+
+            connection.start()
+                .then(() => connection.invoke("JoinChat", chatId.toString()))
+                .catch(err => console.error("Помилка підключення: ", err));
+        }
+
+        function appendMessage(type, text, time) {
+            const date = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const isMe = type === 'me';
+            
+            const msgHtml = `
+                <div class="d-flex ${isMe ? 'justify-content-end' : 'justify-content-start'} mb-2">
+                    <div class="p-2 rounded shadow-sm" style="max-width: 85%; background-color: ${isMe ? '#fff3cd' : '#ffffff'}; border: 1px solid #e9ecef;">
+                        <div style="font-size: 0.9rem; word-break: break-word; color:#212529;">${escapeHtml(text)}</div>
+                        <div class="text-end text-muted" style="font-size: 0.65rem; margin-top: 2px;">${date}</div>
+                    </div>
+                </div>`;
+            messagesBox.insertAdjacentHTML('beforeend', msgHtml);
+        }
+
+        chatForm.addEventListener("submit", function (e) {
+            e.preventDefault(); 
+            
+            const text = msgInput.value.trim();
+            const chatId = hiddenChatId.value;
+
+            if (text && connection && chatId) {
+                connection.invoke("SendMessage", chatId.toString(), text)
+                    .then(() => { msgInput.value = ''; })
+                    .catch(err => console.error("Не вдалося надіслати: ", err));
+            }
+        });
+
+        function scrollToBottom() { messagesBox.scrollTop = messagesBox.scrollHeight; }
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, s => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': '&quot;', "'": '&#39;' }[s]));
+        }
+    });
+</script>

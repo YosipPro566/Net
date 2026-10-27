@@ -1,0 +1,106 @@
+@model IEnumerable<AgriculturalWebsite.Models.Chat>
+
+@{
+    ViewData["Title"] = "Кабінет повідомлень";
+    var currentUserId = ViewBag.CurrentUserId as string;
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="row g-0" style="height: 75vh;">
+            <div class="col-md-4 border-end bg-light d-flex flex-column h-100">
+                <div class="p-3 bg-success text-white"><h5>📥 Ваші діалоги</h5></div>
+                <div class="list-group list-group-flush overflow-auto flex-grow-1" id="chatsList">
+                    @foreach (var chat in Model)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action p-3" onclick="selectChat(@chat.ChatId)">
+                            <strong>@Html.Raw(System.Net.WebUtility.HtmlDecode(chat.Name ?? "Чат"))</strong>
+                        </button>
+                    }
+                </div>
+            </div>
+            <div class="col-md-8 d-flex flex-column h-100">
+                <div id="roomChatMessages" class="flex-grow-1 overflow-auto p-4 bg-white"></div>
+                <div class="p-3 bg-light border-top">
+                    <div class="input-group">
+                        <input type="text" id="roomMessageInput" class="form-control" placeholder="Напишіть повідомлення..." />
+                        <button class="btn btn-success" id="roomSendButton">Надіслати</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        let connection = null;
+        let activeChatId = null;
+        const myUserId = "@currentUserId";
+
+        // 1. Функція декодування (замість escapeHtml)
+        function decodeHtml(html) {
+            const txt = document.createElement("textarea");
+            txt.innerHTML = html;
+            return txt.value;
+        }
+
+        // 2. Ініціалізація SignalR
+        async function startSignalR() {
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chathub")
+                .withAutomaticReconnect()
+                .build();
+
+            // СЛУХАЄМО НОВІ ПОВІДОМЛЕННЯ
+            connection.on("ReceiveMessage", (message) => {
+                appendRoomMessage(message);
+            });
+
+            await connection.start();
+        }
+
+        async function selectChat(chatId) {
+            activeChatId = chatId;
+            // Приєднуємось до хабу для конкретного чату
+            await connection.invoke("JoinChat", chatId.toString());
+            
+            const res = await fetch(`/api/chat/${chatId}/messages`);
+            const messages = await res.json();
+            const box = document.getElementById('roomChatMessages');
+            box.innerHTML = '';
+            messages.forEach(msg => appendRoomMessage(msg));
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function appendRoomMessage(message) {
+            const box = document.getElementById('roomChatMessages');
+            const msgText = message.text || message.message || message.Text || message.Message || "";
+            const senderId = message.userId || message.UserId;
+            
+            const isOwn = (senderId === myUserId);
+            const cleanText = decodeHtml(msgText);
+            
+            box.innerHTML += `
+                <div class="mb-2 ${isOwn ? 'text-end' : 'text-start'}">
+                    <div class="p-2 rounded d-inline-block ${isOwn ? 'bg-success text-white' : 'bg-light border'}" 
+                         style="max-width: 70%; text-align: left;">
+                        ${cleanText}
+                    </div>
+                </div>`;
+            
+            box.scrollTop = box.scrollHeight;
+        }
+
+        document.getElementById('roomSendButton').addEventListener('click', async () => {
+            const input = document.getElementById('roomMessageInput');
+            if (input.value.trim() && connection && activeChatId) {
+                await connection.invoke("SendMessage", activeChatId.toString(), input.value.trim());
+                input.value = '';
+            }
+        });
+
+        startSignalR();
+    </script>
+}

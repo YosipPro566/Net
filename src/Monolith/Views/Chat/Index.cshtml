@@ -1,0 +1,177 @@
+@model List<AgriculturalWebsite.Models.Chat>
+
+@{
+    ViewData["Title"] = "Повідомлення";
+}
+
+<style>
+    .chat-list-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+    .chat-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    .chat-list-header h2 {
+        font-size: 32px;
+        font-weight: 700;
+        color: #002f34;
+        margin: 0;
+    }
+    .new-chat-btn {
+        background: #002f34;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .new-chat-btn:hover {
+        background: #004d4d;
+        color: white;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .empty-state-icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+    }
+    .empty-state h3 {
+        font-size: 24px;
+        color: #002f34;
+        margin-bottom: 12px;
+    }
+    .empty-state p {
+        color: #7f8c8d;
+        margin-bottom: 24px;
+        font-size: 16px;
+    }
+    .chat-item {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .chat-item:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
+    }
+    .chat-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+    .chat-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .chat-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #002f34;
+        margin: 0 0 6px 0;
+    }
+    .chat-description {
+        color: #7f8c8d;
+        font-size: 14px;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .chat-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+    .chat-time {
+        font-size: 13px;
+        color: #95a5a6;
+        white-space: nowrap;
+    }
+    .chat-badge {
+        background: #23d2a4;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+</style>
+
+<div class="chat-list-container">
+    <div class="chat-list-header">
+        <h2>💬 Повідомлення</h2>
+        <a href="@Url.Action("SelectAgronomist")" class="new-chat-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Новий чат
+        </a>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <h3>У вас поки немає повідомлень</h3>
+            <p>Почніть спілкування з агрономом для отримання професійної консультації</p>
+            <a href="@Url.Action("SelectAgronomist")" class="new-chat-btn">
+                Почати чат з агрономом
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="chat-list">
+            @foreach (var chat in Model)
+            {
+                var firstLetter = chat.Name.Substring(0, 1).ToUpper();
+
+                <a href="@Url.Action("Room", new { chatId = chat.ChatId })" class="chat-item">
+                    <div class="chat-avatar">@firstLetter</div>
+                    <div class="chat-content">
+                        <h3 class="chat-name">@chat.Name</h3>
+                        @if (!string.IsNullOrEmpty(chat.Description))
+                        {
+                            <p class="chat-description">@chat.Description</p>
+                        }
+                    </div>
+                    <div class="chat-meta">
+                        <span class="chat-time">@chat.CreatedAt.ToString("dd.MM.yyyy")</span>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>

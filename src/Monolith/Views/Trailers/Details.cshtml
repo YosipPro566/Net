@@ -1,0 +1,154 @@
+@using System.Security.Claims
+@model dynamic
+
+@{
+    ViewData["Title"] = "Деталі оголошення";
+}
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 p-4 mb-4" style="border-radius: 12px;">
+                <h2 class="text-success fw-bold">🚛 Деталі сільськогосподарського причепа</h2>
+                <hr />
+                
+                <p class="fs-5">Ви переглядаєте картку товару. Вся інформація, включаючи характеристики, контакти фермера та опис, представлена нижче.</p>
+                
+                <div class="alert alert-info mt-3" style="border-radius: 8px;">
+                    <strong>ℹ️ Зверніть увагу:</strong> Ви можете зв'язатися з продавцем у реальному часі через форму чату справа.
+                </div>
+
+                <a href="/Trailers" class="btn btn-outline-secondary mt-4 px-4">↩️ Назад до списку техніки</a>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            @if (User.Identity.IsAuthenticated)
+            {
+                <div class="card border-success shadow-sm h-100 d-flex flex-column" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header bg-success text-white py-3">
+                        <h5 class="mb-0 fw-bold">💬 Зв'язок з продавцем у реальному часі</h5>
+                    </div>
+                    <div class="card-body bg-light d-flex flex-column p-3" style="min-height: 400px;">
+                        
+                        <div id="startChatBlock" class="text-center my-auto py-5">
+                            <button type="button" id="initChatBtn" class="btn btn-success btn-lg px-5 shadow-sm fw-bold" style="border-radius: 30px;">
+                                Написати продавцю 🚀
+                            </button>
+                        </div>
+
+                        <div id="itemChatWrapper" class="d-none flex-column flex-grow-1 h-100">
+                            <div id="itemMessagesBox" class="p-3 bg-white border rounded mb-3 overflow-auto flex-grow-1" style="height: 280px; border-radius: 8px;"></div>
+                            <div class="input-group shadow-sm mt-auto">
+                                <input type="text" id="itemMessageInput" class="form-control" placeholder="Напишіть повідомлення..." autocomplete="off" />
+                                <button class="btn btn-success px-4 fw-bold" type="button" id="itemSendBtn">Надіслати</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning text-center shadow-sm p-4" style="border-radius: 12px;">
+                    🔒 <strong>Авторизуйтесь на сайті</strong>, щоб відкрити чат з цим фермером.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @Html.AntiForgeryToken()
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const currentUserId = "@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value";
+        const sellerId = "@ViewData["SellerId"]";
+        const itemName = "@Model.Name";
+        
+        let chatConnection = null;
+        let activeChatId = null;
+
+        document.getElementById('initChatBtn')?.addEventListener('click', async function () {
+            if (!sellerId) {
+                alert("Помилка: Продавець не знайдений.");
+                return;
+            }
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            const response = await fetch('/Chat/StartItemChat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: `sellerId=${encodeURIComponent(sellerId)}&itemName=${encodeURIComponent(itemName)}`
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                activeChatId = result.chatId;
+                document.getElementById('startChatBlock').classList.add('d-none');
+                document.getElementById('itemChatWrapper').classList.remove('d-none');
+                document.getElementById('itemChatWrapper').classList.add('d-flex');
+
+                await loadHistory(activeChatId);
+                initSignalR(activeChatId);
+            } else {
+                alert("Помилка: " + result.message);
+            }
+        });
+
+        async function loadHistory(chatId) {
+            const res = await fetch(`/api/chat/${chatId}/messages`);
+            const messages = await res.json();
+            const box = document.getElementById('itemMessagesBox');
+            box.innerHTML = '';
+            messages.forEach(msg => appendMessage(msg));
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function initSignalR(chatId) {
+            chatConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/chathub")
+                .withAutomaticReconnect()
+                .build();
+
+            chatConnection.on("ReceiveMessage", function (message) {
+                appendMessage(message);
+                document.getElementById('itemMessagesBox').scrollTop = document.getElementById('itemMessagesBox').scrollHeight;
+            });
+
+            chatConnection.start().then(() => {
+                chatConnection.invoke("JoinChat", chatId.toString());
+            });
+        }
+        
+        async function sendMsg() {
+            const input = document.getElementById('itemMessageInput');
+            if (input.value.trim() && chatConnection && activeChatId) {
+                await chatConnection.invoke("SendMessage", activeChatId.toString(), input.value.trim());
+                input.value = '';
+            }
+        }
+
+        document.getElementById('itemSendBtn')?.addEventListener('click', sendMsg);
+        document.getElementById('itemMessageInput')?.addEventListener('keypress', function(e) {
+            if(e.key === 'Enter') sendMsg();
+        });
+
+        function appendMessage(message) {
+            const box = document.getElementById('itemMessagesBox');
+            const uid = message.userId || message.UserId;
+            const txt = message.text || message.message || message.Text || message.Message;
+            const isOwn = uid === currentUserId;
+            
+            box.innerHTML += `<div class="mb-2 ${isOwn ? 'text-end' : 'text-start'}">
+                <div class="d-inline-block p-2 rounded ${isOwn ? 'bg-success text-white' : 'bg-light border'}" style="max-width:80%; text-align:left;">
+                    ${txt}
+                </div>
+            </div>`;
+        }
+    </script>
+}

@@ -1,0 +1,140 @@
+@{
+    ViewData["Title"] = "Головна";
+}
+
+<!-- HERO -->
+<div class="hero-section">
+    <div style="position:relative; z-index:1;">
+        <div style="font-size:3.5rem; margin-bottom:0.5rem;">🌾</div>
+        <h1 class="display-4">Ласкаво просимо до<br><span style="color:#c8893a;">Аграрного Маркету</span></h1>
+        <p class="lead mt-3">Ваш надійний партнер у сільському господарстві</p>
+        <div class="mt-4 d-flex gap-3 justify-content-center flex-wrap">
+            <a asp-controller="Tractors" asp-action="Index" class="btn btn-primary btn-lg px-4">
+                Переглянути каталог
+            </a>
+            <a asp-controller="Home" asp-action="About" class="btn btn-outline-secondary btn-lg px-4">
+                Про нас
+            </a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a asp-controller="Chat" asp-action="Index" class="btn btn-success btn-lg px-4">
+                    💬 Чат з агрономом
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- CATALOG CARDS -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card catalog-card h-100">
+            <div class="card-body text-center">
+                <span class="icon">🚜</span>
+                <h3 class="card-title mb-2">Трактори</h3>
+                <p class="text-muted mb-4">Широкий вибір сучасної сільгосптехніки від провідних виробників</p>
+                <a asp-controller="Tractors" asp-action="Index" class="btn btn-primary w-100">
+                    Перейти до каталогу →
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card catalog-card h-100">
+            <div class="card-body text-center">
+                <span class="icon">🏗️</span>
+                <h3 class="card-title mb-2">Причепи</h3>
+                <p class="text-muted mb-4">Якісні причепи для будь-яких завдань та навантажень</p>
+                <a asp-controller="Trailers" asp-action="Index" class="btn btn-primary w-100">
+                    Перейти до каталогу →
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card catalog-card h-100">
+            <div class="card-body text-center">
+                <span class="icon">🌽</span>
+                <h3 class="card-title mb-2">Продукти</h3>
+                <p class="text-muted mb-4">Свіжа сільгосппродукція від фермерів по всій країні</p>
+                <a asp-controller="Products" asp-action="Index" class="btn btn-primary w-100">
+                    Перейти до каталогу →
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AGRONOMIST CHAT SECTION -->
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <div class="card-body text-center text-white py-4">
+                    <h3 class="mb-3">💬 Потрібна консультація агронома?</h3>
+                    <p class="mb-4" style="font-size: 1.1rem;">Наші експерти готові відповісти на ваші питання щодо вирощування, догляду за культурами та вибору техніки</p>
+                    <a asp-controller="Chat" asp-action="Index" class="btn btn-light btn-lg px-5">
+                        Почати чат з агрономом
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-body text-center py-4">
+                    <h3 class="mb-3 text-success">💬 Консультація агронома</h3>
+                    <p class="mb-4 text-muted" style="font-size: 1.1rem;">Увійдіть або зареєструйтесь, щоб отримати професійну консультацію від наших агрономів</p>
+                    <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-success btn-lg px-5 me-2">
+                        Увійти
+                    </a>
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-outline-success btn-lg px-5">
+                        Реєстрація
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- STATS -->
+<div class="row g-3 mb-5">
+    <div class="col-6 col-md-3">
+        <div class="card text-center py-3">
+            <div style="font-size:2rem; font-weight:700; color:#c8893a; font-family:'Playfair Display',serif;">500+</div>
+            <div style="font-size:0.85rem; color:#7a5c3a; font-weight:500;">Одиниць техніки</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center py-3">
+            <div style="font-size:2rem; font-weight:700; color:#c8893a; font-family:'Playfair Display',serif;">200+</div>
+            <div style="font-size:0.85rem; color:#7a5c3a; font-weight:500;">Фермерів</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center py-3">
+            <div style="font-size:2rem; font-weight:700; color:#c8893a; font-family:'Playfair Display',serif;">50+</div>
+            <div style="font-size:0.85rem; color:#7a5c3a; font-weight:500;">Регіонів</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center py-3">
+            <div style="font-size:2rem; font-weight:700; color:#c8893a; font-family:'Playfair Display',serif;">5★</div>
+            <div style="font-size:0.85rem; color:#7a5c3a; font-weight:500;">Рейтинг</div>
+        </div>
+    </div>
+</div>
+
+<!-- ABOUT -->
+<div class="about-section mb-4">
+    <h2 class="mb-3">🌿 Про нашу компанію</h2>
+    <p class="text-muted mb-0" style="max-width:600px; margin:0 auto; font-size:1.05rem; line-height:1.7;">
+        Ми надаємо якісну сільгосптехніку та продукцію для фермерів і покупців по всій країні.
+        Наша місія — зробити сільське господарство простішим та ефективнішим.
+    </p>
+</div>
