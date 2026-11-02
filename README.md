@@ -7,7 +7,8 @@
 - Додано явні маршрути `/api/auth/{everything}`, `/api/products/{everything}`, `/api/tractors/{everything}` і `/api/trailers/{everything}` перед catch-all `/api/{everything}`.
 - Додано catch-all `/{everything}` для решти шляхів моноліту (вебсторінки, Swagger тощо).
 - Додано `/health` (200 OK), логування запитів, `X-Correlation-Id`, CORS і конфігурацію Ocelot.
-- Додано інвентаризацію, два ADR та три діаграми.
+- Додано інвентаризацію за контролерами, DbSet і міграціями, два ADR та три діаграми.
+- У цільовій схемі наступної ЛР заплановано AuthService на `5001` з БД `miniproject_auth` і CatalogService на `5002` з БД `miniproject_catalog`; у ЛР0 ці сервіси ще не створені.
 
 ## Порти
 
@@ -21,22 +22,20 @@
 
 ## Запуск
 
-Потрібен .NET SDK 9 і доступ до NuGet для відновлення пакетів. SQLite-база створюється автоматично з міграцій під час запуску; локальний файл бази не додається до репозиторію.
+Потрібен .NET SDK 9, доступ до NuGet для відновлення пакетів та SQLite-файл `src/Monolith/app.db`.
 
-Перед першим запуском налаштуй локальний ключ JWT через User Secrets (заміни placeholder на власний випадковий секрет щонайменше з 32 символів):
+Перед запуском моноліту налаштуй власний JWT signing key через User Secrets (не додавай ключ до файлів конфігурації):
 
-```powershell
-dotnet user-secrets set "Jwt:Key" "<your-random-secret-at-least-32-characters>" --project src/Monolith
+```bash
+dotnet user-secrets set "Jwt:Key" "<твій випадковий ключ щонайменше на 32 символи>" --project src/Monolith
 ```
 
-Для створення тестових користувачів додатково налаштуй секрети відповідних облікових записів; без цих параметрів користувачі автоматично не створюються:
+Тестові облікові записи не створюються з паролями за замовчуванням. Якщо вони потрібні, налаштуй їх через User Secrets, наприклад:
 
-```powershell
-dotnet user-secrets set "SeedUsers:Admin:Email" "<admin-email>" --project src/Monolith
-dotnet user-secrets set "SeedUsers:Admin:Password" "<admin-password>" --project src/Monolith
+```bash
+dotnet user-secrets set "SeedUsers:Admin:Email" "admin@example.com" --project src/Monolith
+dotnet user-secrets set "SeedUsers:Admin:Password" "<твій пароль>" --project src/Monolith
 ```
-
-Для агрономів використовуй такі самі ключі з секціями `SeedUsers:Agronomist1`, `SeedUsers:Agronomist2` та `SeedUsers:Agronomist3`.
 
 У першому терміналі запусти моноліт:
 
@@ -77,13 +76,28 @@ curl -i http://localhost:5193/api/products
 ## Конфігурація
 
 - Ocelot-маршрути: `src/ApiGateway/ocelot.json`.
-- Адреса downstream за замовчуванням задається в JSON-конфігурації; її можна перевизначати змінними середовища .NET Configuration, наприклад `Routes__0__DownstreamHostAndPorts__0__Host` / `Routes__0__DownstreamHostAndPorts__0__Port` (Auth), `Routes__1__...` (Products), `Routes__2__...` (Tractors), `Routes__3__...` (Trailers), `Routes__4__...` (API catch-all), `Routes__5__...` (кореневий шлях) і `Routes__6__...` (загальний catch-all). Значення для всіх маршрутів потрібно узгоджено змінити, якщо змінюється downstream. Аналогічно можна перевизначити `Monolith__Host` / `Monolith__Port` для журналу шлюзу.
+- Адреси downstream Ocelot бере з `ocelot.json`. Для перевизначення адреси через змінні середовища .NET Configuration використовуй `Routes__N__DownstreamHostAndPorts__0__Host` та `Routes__N__DownstreamHostAndPorts__0__Port`, де `N` — індекс маршруту в масиві `Routes` (нумерація з нуля). Індекси: `0` Auth, `1` Products, `2` Tractors, `3` Trailers, `4` API catch-all, `5` кореневий шлях, `6` загальний catch-all. Оскільки в ЛР0 всі маршрути ведуть на моноліт, змінюй downstream для всіх маршрутів, які мають обслуговуватися монолітом. `Monolith__Host` / `Monolith__Port` впливають лише на адресу, яку показує журнал шлюзу; самі по собі вони не змінюють маршрути Ocelot.
 - Порт шлюзу задається в `src/ApiGateway/Properties/launchSettings.json`.
 - CORS origin за замовчуванням: `Cors:AllowedOrigin` у `src/ApiGateway/appsettings.json`; його можна змінити через `Cors__AllowedOrigin`.
 - Для маршрутів `/api/auth/**` і `/api/products/**` використовується той самий downstream, що й для catch-all, доки сервісів ще немає.
 
-## Документація
+## План наступного етапу (ЛР1)
 
+За методичкою ЛР1 заплановані окремі AuthService (`http://localhost:5001`) і CatalogService (`http://localhost:5002`) з власними базами `miniproject_auth` та `miniproject_catalog`. Цільові маршрути — `/api/v1/auth/**`, `/api/v1/users/**` і `/api/v1/catalog/**`. У ЛР0 ці сервіси та їхні БД не створюються; шлюз поки пересилає запити до наявного моноліту на `5193`. Порт `5193` збережено, оскільки він реально заданий у `src/Monolith/Properties/launchSettings.json`; `5100` у методичці ЛР1 — приклад/базове значення, яке не відповідає цьому репозиторію.
+
+## Документація та дорожня карта робіт (ЛР0 — ЛР4)
+
+- **[Загальна дорожня карта робіт (Roadmap)](./docs/tasks/LABS-ROADMAP.md)** — зведена схема трансформації, порти, бази даних та зв'язок сутностей аграрної тематики.
+- **[Повний посібник до захисту та слайди презентації](./docs/presentation/defense-guide.md)** — готова презентація на 7 слайдів, сценарій Live Demo та пояснення змін у бекенді.
+- **[Аудит помилок, конфліктів та підводних каменів за методичками](./docs/analysis/cross-lab-conflicts-and-traps.md)** — розбір розбіжностей, пасток, вразливостей та таблиця штрафів викладачів.
+- **Специфікації завдань за лабораторними роботами:**
+  - [ЛР0: Проєктування декомпозиції та шлюз перед монолітом](./docs/tasks/LR0-decomposition-gateway.md)
+  - [ЛР1: Auth-сервіс і Catalog-сервіс](./docs/tasks/LR1-auth-catalog-services.md)
+  - [ЛР2: Винесення операційного сервісу та тести](./docs/tasks/LR2-operations-service-and-tests.md)
+  - [ЛР3: Розширення API Gateway (складений запит, кеш, rate limit)](./docs/tasks/LR3-gateway-composite-cache-ratelimit.md)
+  - [ЛР4: Клієнтський застосунок та презентація](./docs/tasks/LR4-client-application-and-presentation.md)
+
+### Документація етапу ЛР0:
 - Інвентаризація моноліту: `docs/architecture/monolith-inventory.md`.
 - Архітектурні рішення: `docs/adr/0001-service-decomposition.md`, `docs/adr/0002-ocelot-gateway.md`.
 - Діаграми: `docs/diagrams/01-system-composition.md`, `02-sequence-current.md`, `03-sequence-future.md`.

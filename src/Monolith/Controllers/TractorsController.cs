@@ -19,6 +19,14 @@ namespace AgriculturalWebsite.Controllers
         public async Task<IActionResult> Index()
         {
             var tractors = await _context.Tractors.Where(t => t.IsAvailable).ToListAsync();
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                ViewBag.FavoriteIds = await _context.Favorites
+                    .Where(f => f.UserId == userId && f.ItemType == "Tractor")
+                    .Select(f => f.ItemId)
+                    .ToListAsync();
+            }
             return View(tractors);
         }
 

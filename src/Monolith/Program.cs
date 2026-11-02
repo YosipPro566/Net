@@ -43,8 +43,13 @@ builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 
 // JWT додаємо до існуючої Identity аутентифікації
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("JWT signing key 'Jwt:Key' is not configured.");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is not configured. Set it with user secrets or the Jwt__Key environment variable.");
+}
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "AgriculturalWebsite";
 
 builder.Services.AddAuthentication()
@@ -119,9 +124,7 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
-    await AgriculturalWebsite.Data.SeedData.Initialize(scope.ServiceProvider, builder.Configuration);
+    await AgriculturalWebsite.Data.SeedData.Initialize(scope.ServiceProvider, app.Configuration);
 }
 
 if (app.Environment.IsDevelopment())

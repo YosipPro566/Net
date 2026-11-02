@@ -1,10 +1,10 @@
-using System.Diagnostics;
+ using System.Diagnostics;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Ocelot routes live in ocelot.json; environment variables can override config keys.
+
 builder.Configuration
     .SetBasePath(builder.Environment.ContentRootPath)
     .AddOcelot()
@@ -16,7 +16,7 @@ builder.Services.AddOcelot(builder.Configuration);
 var allowedOrigin = builder.Configuration["Cors:AllowedOrigin"] ?? "http://localhost:5193";
 var app = builder.Build();
 
-// Health and cross-cutting middleware are deliberately registered before Ocelot.
+
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault();

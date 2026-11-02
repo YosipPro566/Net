@@ -69,7 +69,7 @@ namespace AgriculturalWebsite.Data
                 if (!roleResult.Succeeded)
                 {
                     throw new InvalidOperationException(
-                        $"Could not assign role '{account.Role}' to seed user '{email}': {string.Join(", ", roleResult.Errors.Select(error => error.Description))}");
+                        $"Could not assign role '{account.Role}': {string.Join(", ", roleResult.Errors.Select(error => error.Description))}");
                 }
             }
         }
